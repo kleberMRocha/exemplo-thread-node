@@ -1,6 +1,6 @@
 import { Execute } from './Execute.js';
 
-const exec = new Execute('./worker.js');
+const exec = new Execute();
 await exec.readFile();
 
 exec.run()

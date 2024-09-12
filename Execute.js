@@ -2,15 +2,13 @@ import { Worker } from "worker_threads";
 import { readFile } from "node:fs/promises";
 
 export class Execute {
-  constructor(worker) {
-    this.worker = worker;
+  constructor() {
     this.readFile();
   }
   
   worker;
   messages;
   totalProcess;
-  step = 0;
 
   _runWorker(message) {
     return new Promise((resolve, reject) => {
@@ -21,11 +19,6 @@ export class Execute {
       worker.postMessage(message);
 
       worker.on("message", (result) => {
-
-        // progress 
-        this.step += 1;
-        const percent = `${Math.floor((100 * this.step) / this.totalProcess)} %`;
-        console.log(percent);
 
         return resolve(result);
       });
@@ -40,24 +33,67 @@ export class Execute {
   }
 
   async run() {
-    const promises = this.messages.map((message) => this._runWorker(message));
+
+    let current = 0;
+    const slices = [];
+
+    const keys = Object.keys(this.messages);
+
+    keys.forEach(k => {
+      current++;
+
+      if(!slices.length){
+        slices.push([this.messages[k]]);
+        return;
+      }
+
+      if(current > 1200){
+
+        current = 0;
+        slices.push([this.messages[k]]);
+        return;
+      }
+
+
+      slices[slices.length -1].push(this.messages[k]);
+
+
+    });
+
+    const promises = slices.map((message) => {
+     return this._runWorker(message);
+    });
 
     await Promise.all(promises);
   }
 
   async readFile() {
-
+    const concatMessages = {};
+    
     const data = await readFile("animeflv.json", "utf8");
     const JsonData = JSON.parse(data);
-    const keys = Object.keys(JsonData);
 
-    const mapFile = keys.map(k => {
-        return { [k]: JsonData[k] };
+    const keys = Object.keys(JsonData);
+    const ids = Object.keys(JsonData["title"]);
+
+    ids.forEach((id) => {
+      const obj = keys.reduce(function (acc, item) {
+        acc[item] = "";
+
+        return acc;
+      }, {});
+
+      concatMessages[id] = obj;
+
+      keys.forEach(k => {
+        concatMessages[id][k] = JsonData[k][id]
+      });
+
+
     });
 
-   this.messages = mapFile;
+    this.messages = concatMessages;
 
-   this.totalProcess = mapFile.length;
-
+    this.totalProcess = ids.length;
   }
 }

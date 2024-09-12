@@ -1,48 +1,51 @@
-import { parentPort, threadId } from 'worker_threads';
-import { mkdir, access, writeFile } from 'node:fs/promises';
+import { parentPort, threadId } from "worker_threads";
+import mysql from "mysql2/promise";
 
-const CONCURRENCY_LIMIT = 300; 
+parentPort.on("message", async (message) => {
+  const connectionConfig = {
+    host: "localhost",
+    user: "root",
+    password: "",
+    database: "animeflv",
+  };
 
-async function limitConcurrency(tasks, limit) {
-    const results = [];
-    const executing = [];
-    for (const task of tasks) {
-        const p = Promise.resolve().then(() => task());
-        results.push(p);
-        if (limit <= tasks.length) {
-            const e = p.finally(() => {
-                executing.splice(executing.indexOf(e), 1);
-            });
-            executing.push(e);
-            if (executing.length >= limit) {
-                await Promise.race(executing);
-            }
-        }
-    }
-    return Promise.all(results);
-}
+  const query = `
+    INSERT INTO anime 
+    (year, rate_start, title, followers, genders, type, image, description, episodes, votes, status, url_anime) 
+    VALUES ?`; 
 
-parentPort.on('message', async (message) => {
-    try {
-        const key = Object.keys(message)[0];
-        const ids = Object.keys(message[key]);
-        const dirPath = './' + key;
+  try {
 
-        const directoryExists = await access(dirPath).then(() => true).catch(() => false);
-        if (!directoryExists) {
-            await mkdir(dirPath, { recursive: true });
-        }
+    const connection = await mysql.createConnection(connectionConfig);
 
-        await limitConcurrency(ids.map((registro) => async () => {
-            await writeFile(`${dirPath}/${registro}.txt`, JSON.stringify(message[key][registro]));
-        }), CONCURRENCY_LIMIT);
+    const values = message.map(item => [
+      item.year,
+      item.rate_start,
+      item.title,
+      item.followers,
+      item.genders,
+      item.type,
+      item.image,
+      item.description,
+      item.episodes,
+      item.votes,
+      item.status,
+      item.url_anime
+    ]);
 
-        console.log(`Worker - PID: ${process.pid}, Thread ID: ${threadId}`);
-        parentPort.postMessage(`Processado: ${message}`);
 
-    } catch (error) {
+    await connection.query(query, [values]);
 
-        console.error(`Erro no Worker - PID: ${process.pid}, Thread ID: ${threadId}:`, error);
-        parentPort.postMessage(`Erro: ${error.message}`);
-    }
+    console.log(`Worker - PID: ${process.pid}, Thread ID: ${threadId}`);
+    parentPort.postMessage(`Processado: ${message}`);
+
+    await connection.end();
+
+  } catch (error) {
+    console.error(
+      `Erro no Worker - PID: ${process.pid}, Thread ID: ${threadId}:`,
+      error
+    );
+    parentPort.postMessage(`Erro: ${error.message}`);
+  }
 });

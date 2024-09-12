@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "fs-estudo": "file:"
+    "fs-estudo": "file:",
+    "mysql2": "^3.11.2"
   }
 }
