@@ -5,7 +5,7 @@ const stream = createReadStream("./metadata.json");
 
 let buffer = "";
 let slice = [];
-const limit = 10000;
+const limit = 8000;
 
 stream.on("data", (chunk) => {
   buffer += chunk.toString("utf-8");

@@ -28,6 +28,7 @@ function processChunk(slices) {
         console.error(`Worker stopped with exit code ${code}`);
       }
     });
+    
   }
   
 

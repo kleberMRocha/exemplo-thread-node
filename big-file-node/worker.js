@@ -14,7 +14,7 @@ async function processChunk(chunk) {
         const connection = await mysql.createConnection(connectionConfig);
         const arrayList = JSON.parse(chunk);
         const values = arrayList.map(item => [
-            item.id ,
+            '',
             item.submitter,
             item.authors ,
             item.title,
