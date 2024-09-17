@@ -1,36 +1,51 @@
-import { parentPort, workerData } from "worker_threads";
+import { parentPort, threadId } from "worker_threads";
 import mysql from "mysql2/promise";
 
-const pool = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "animeflv",
-  waitForConnections: true,
-  connectionLimit: 99,
-});
+parentPort.on("message", async (message) => {
+  const connectionConfig = {
+    host: "localhost",
+    user: "root",
+    password: "",
+    database: "animeflv",
+  };
 
-async function getLines({ offSet }) {
+  const query = `
+    INSERT INTO anime 
+    (year, rate_start, title, followers, genders, type, image, description, episodes, votes, status, url_anime) 
+    VALUES ?`; 
+
   try {
-    const connection = await pool.getConnection();
-    const query =
-      "SELECT * FROM people ORDER BY id LIMIT 1000 OFFSET " + offSet;
 
-    console.log(query);
-    
-    // Aqui você poderia processar os dados
-    connection.release();
+    const connection = await mysql.createConnection(connectionConfig);
 
-    return "Worker finalizado com sucesso";
+    const values = message.map(item => [
+      item.year,
+      item.rate_start,
+      item.title,
+      item.followers,
+      item.genders,
+      item.type,
+      item.image,
+      item.description,
+      item.episodes,
+      item.votes,
+      item.status,
+      item.url_anime
+    ]);
+
+
+    await connection.query(query, [values]);
+
+    console.log(`Worker - PID: ${process.pid}, Thread ID: ${threadId}`);
+    parentPort.postMessage(`Processado: ${message}`);
+
+    await connection.end();
 
   } catch (error) {
     console.error(
-      `Erro no Worker - PID: ${process.pid}:`,
+      `Erro no Worker - PID: ${process.pid}, Thread ID: ${threadId}:`,
       error
     );
-    throw error; // Lança erro para que o worker avise o processo principal
+    parentPort.postMessage(`Erro: ${error.message}`);
   }
-}
-
-const result = await getLines(workerData);
-parentPort.postMessage(result);
+});
